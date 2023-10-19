@@ -747,6 +747,7 @@ public abstract class AbstractQueuedSynchronizer
         node.thread = null;
 
         // Skip cancelled predecessors
+        // 找到上一个没有被删除的节点
         Node pred = node.prev;
         while (pred.waitStatus > 0)
             node.prev = pred = pred.prev;
@@ -2032,6 +2033,7 @@ public abstract class AbstractQueuedSynchronizer
         public final void await() throws InterruptedException {
             if (Thread.interrupted())
                 throw new InterruptedException();
+            //
             Node node = addConditionWaiter();
             int savedState = fullyRelease(node);
             int interruptMode = 0;
