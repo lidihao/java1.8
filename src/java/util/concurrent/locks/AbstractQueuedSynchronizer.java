@@ -689,7 +689,7 @@ public abstract class AbstractQueuedSynchronizer
                     unparkSuccessor(h);
                 }
                 else if (ws == 0 &&
-                         !compareAndSetWaitStatus(h, 0, Node.PROPAGATE))
+                         !compareAndSetWaitStatus(h, 0, Node.PROPAGATE)) // 如果head的状态是0，将状态改为PROPAGATE说明是可以共享锁传播
                     continue;                // loop on failed CAS
             }
             if (h == head)                   // loop if head changed
@@ -710,6 +710,7 @@ public abstract class AbstractQueuedSynchronizer
         setHead(node);
         /*
          * Try to signal next queued node if:
+         *   调用者说明共享锁可以传播 (propagate>0)
          *   Propagation was indicated by caller,
          *     or was recorded (as h.waitStatus either before
          *     or after setHead) by a previous operation
@@ -1120,6 +1121,7 @@ public abstract class AbstractQueuedSynchronizer
      *        passed to an acquire method, or is the value saved on entry
      *        to a condition wait.  The value is otherwise uninterpreted
      *        and can represent anything you like.
+     *            负数如果获取锁失败，0如果后续获取共享锁不会成功，正数后续共享锁或许会成功
      * @return a negative value on failure; zero if acquisition in shared
      *         mode succeeded but no subsequent shared-mode acquire can
      *         succeed; and a positive value if acquisition in shared
@@ -2033,15 +2035,20 @@ public abstract class AbstractQueuedSynchronizer
         public final void await() throws InterruptedException {
             if (Thread.interrupted())
                 throw new InterruptedException();
-            //
+            //将自己加入到等待队列
             Node node = addConditionWaiter();
+            // 释放锁
             int savedState = fullyRelease(node);
             int interruptMode = 0;
+            // 是否在同步队列中，不在同步队列说明，不能竞争锁
             while (!isOnSyncQueue(node)) {
+
+                // 挂起线程
                 LockSupport.park(this);
                 if ((interruptMode = checkInterruptWhileWaiting(node)) != 0)
                     break;
             }
+            //竞争锁，调用获取锁的方法
             if (acquireQueued(node, savedState) && interruptMode != THROW_IE)
                 interruptMode = REINTERRUPT;
             if (node.nextWaiter != null) // clean up if cancelled
