@@ -1016,14 +1016,17 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             if (tab == null || (n = tab.length) == 0)
                 tab = initTable();
             else if ((f = tabAt(tab, i = (n - 1) & hash)) == null) {
+                // 如果cas节点成功，就设置成功节点，如果没有成功，再进入下一次循环
                 if (casTabAt(tab, i, null,
                              new Node<K,V>(hash, key, value, null)))
                     break;                   // no lock when adding to empty bin
             }
             else if ((fh = f.hash) == MOVED)
+                // 渐进式reHash 帮忙进行reHash
                 tab = helpTransfer(tab, f);
             else {
                 V oldVal = null;
+                // 对单个桶加锁
                 synchronized (f) {
                     if (tabAt(tab, i) == f) {
                         if (fh >= 0) {
@@ -2218,24 +2221,34 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Initializes table, using the size recorded in sizeCtl.
+     * 初始化数组table，
+     * 如果sizeCtl小于0，说明别的数组正在进行初始化，则让出执行权
+     * 如果sizeCtl大于0的话，则初始化一个大小为sizeCtl的数组
+     * 否则的话初始化一个默认大小(16)的数组
+     * 然后设置sizeCtl的值为数组长度的3/4
      */
     private final Node<K,V>[] initTable() {
         Node<K,V>[] tab; int sc;
         while ((tab = table) == null || tab.length == 0) {
+            // 第一次 put 的时候，table 还没被初始化，进入 while
             if ((sc = sizeCtl) < 0)
+                // sizeCtl 初始值为0，当小于 0 的时候表示在别的线程在初始化表或扩展表
                 Thread.yield(); // lost initialization race; just spin
             else if (U.compareAndSwapInt(this, SIZECTL, sc, -1)) {
+                // SIZECTL：表示当前对象的内存偏移量，sc表示期望值，-1表示要替换的值，
+                // 设定为-1表示要初始化表了，这一步会将sizeCtl设置成-1
                 try {
                     if ((tab = table) == null || tab.length == 0) {
                         int n = (sc > 0) ? sc : DEFAULT_CAPACITY;
+                        // 指定了大小的时候就创建指定大小的Node数组，
+                        // 否则创建指定大小(16)的 Node 数组
                         @SuppressWarnings("unchecked")
                         Node<K,V>[] nt = (Node<K,V>[])new Node<?,?>[n];
                         table = tab = nt;
                         sc = n - (n >>> 2);
                     }
                 } finally {
-                    sizeCtl = sc;
+                    sizeCtl = sc;  // 初始化后，sizeCtl 长度为数组长度的 3/4
                 }
                 break;
             }

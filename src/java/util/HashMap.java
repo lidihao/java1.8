@@ -573,6 +573,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             if ((e = first.next) != null) {
                 if (first instanceof TreeNode)
                     return ((TreeNode<K,V>)first).getTreeNode(hash, key);
+                // 遍历链表获取数据
                 do {
                     if (e.hash == hash &&
                         ((k = e.key) == key || (key != null && key.equals(k))))
@@ -636,9 +637,11 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             else if (p instanceof TreeNode)
                 e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
             else {
+                // 尾插法
                 for (int binCount = 0; ; ++binCount) {
                     if ((e = p.next) == null) {
                         p.next = newNode(hash, key, value, null);
+                        // 达到树化的阈值，进行红黑树树化
                         if (binCount >= TREEIFY_THRESHOLD - 1) // -1 for 1st
                             treeifyBin(tab, hash);
                         break;
@@ -658,6 +661,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             }
         }
         ++modCount;
+        // 大小达到rehash的大小
         if (++size > threshold)
             resize();
         afterNodeInsertion(evict);
@@ -665,6 +669,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
+     * 进行扩容和rehash
      * Initializes or doubles table size.  If null, allocates in
      * accord with initial capacity target held in field threshold.
      * Otherwise, because we are using power-of-two expansion, the
@@ -710,11 +715,13 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     if (e.next == null)
                         newTab[e.hash & (newCap - 1)] = e;
                     else if (e instanceof TreeNode)
+                        // TODO 红黑树待了解
                         ((TreeNode<K,V>)e).split(this, newTab, j, oldCap);
                     else { // preserve order
                         Node<K,V> loHead = null, loTail = null;
                         Node<K,V> hiHead = null, hiTail = null;
                         Node<K,V> next;
+                        // 计算桶的上一位， 根据上一位是0或者1，分为两个链表，0为底位链表，1为高位链表
                         do {
                             next = e.next;
                             if ((e.hash & oldCap) == 0) {

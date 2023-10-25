@@ -211,6 +211,12 @@ import java.util.Collection;
  *
  * @since 1.5
  * @author Doug Lea
+ *
+ * 继承aqs实现的读写分离
+ *
+ * 维护一个state ,state前半部分作为读锁，后半部分作为写锁
+ *
+ *
  */
 public class ReentrantReadWriteLock
         implements ReadWriteLock, java.io.Serializable {
@@ -679,6 +685,7 @@ public class ReentrantReadWriteLock
              * block if there is a waiting writer behind other enabled
              * readers that have not yet drained from the queue.
              */
+            // @TODO  搞不懂
             return apparentlyFirstQueuedIsExclusive();
         }
     }

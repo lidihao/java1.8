@@ -1035,15 +1035,18 @@ public class StampedLock implements java.io.Serializable {
      */
     private long acquireWrite(boolean interruptible, long deadline) {
         WNode node = null, p;
-        for (int spins = -1;;) { // spin while enqueuing
+        for (int spins = -1;;) { // spin while enqueuing 自旋入队
             long m, s, ns;
+            //如果当前没有锁，就申请锁
             if ((m = (s = state) & ABITS) == 0L) {
                 if (U.compareAndSwapLong(this, STATE, s, ns = s + WBIT))
                     return ns;
             }
             else if (spins < 0)
+                // 当前有锁，是写锁，并且只有一个节点
                 spins = (m == WBIT && wtail == whead) ? SPINS : 0;
             else if (spins > 0) {
+                //将自旋次数--，如果自旋次数==-1就会执行else if (spins < 0)，再次判断是否自旋
                 if (LockSupport.nextSecondarySeed() >= 0)
                     --spins;
             }
@@ -1064,7 +1067,8 @@ public class StampedLock implements java.io.Serializable {
 
         for (int spins = -1;;) {
             WNode h, np, pp; int ps;
-            if ((h = whead) == p) {
+            //p是node的前继节点
+            if ((h = whead) == p) { //如果是队列中的第二个节点，就开始抢锁，第一个节点是哨兵节点
                 if (spins < 0)
                     spins = HEAD_SPINS;
                 else if (spins < MAX_HEAD_SPINS)
@@ -1085,6 +1089,7 @@ public class StampedLock implements java.io.Serializable {
                 }
             }
             else if (h != null) { // help release stale waiters
+            //如果h为悲观读锁节点,则唤醒所有的悲观读锁节点，不理解的可以看上面WNode的图
                 WNode c; Thread w;
                 while ((c = h.cowait) != null) {
                     if (U.compareAndSwapObject(h, WCOWAIT, c, c.cowait) &&
@@ -1114,6 +1119,7 @@ public class StampedLock implements java.io.Serializable {
                     Thread wt = Thread.currentThread();
                     U.putObject(wt, PARKBLOCKER, this);
                     node.thread = wt;
+                    //如果前继节点为WAITING，并且再一次抢锁失败就挂起
                     if (p.status < 0 && (p != h || (state & ABITS) != 0L) &&
                         whead == h && node.prev == p)
                         U.park(false, time);  // emulate LockSupport.park
